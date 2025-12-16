@@ -140,7 +140,6 @@ function App() {
             path="/"
             element={
               <>
-                <Hero />
 
                 {/* Main Container - FIXED RESPONSIVE */}
                 <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-8 max-w-[1800px] mx-auto">
