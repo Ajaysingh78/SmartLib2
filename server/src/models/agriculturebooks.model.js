@@ -47,6 +47,9 @@ const agriculturebookSchema = new mongoose.Schema({
     default: "NEEDS_MANUAL",
   },
   isbnNo: { type: String },
+  totalCopies: {
+    type: Number,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
