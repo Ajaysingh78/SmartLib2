@@ -1,5 +1,6 @@
 // src/components/BookDetails.jsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
+import useSWR from "swr";
 import {
   ArrowLeft,
   Star,
@@ -15,15 +16,16 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { booksData } from "../data/booksData";
+import { getBookByID } from "../api/fetchBookAPI";
 
 // Branch color mappings
 const branchColors = {
-  cs: { bg: 'from-blue-500 to-cyan-500', text: 'text-blue-600' },
-  mech: { bg: 'from-red-500 to-orange-500', text: 'text-red-600' },
-  civil: { bg: 'from-yellow-500 to-orange-500', text: 'text-yellow-600' },
-  ece: { bg: 'from-purple-500 to-pink-500', text: 'text-purple-600' },
-  biotech: { bg: 'from-green-500 to-emerald-500', text: 'text-green-600' },
-  general: { bg: 'from-gray-500 to-slate-500', text: 'text-gray-600' }
+  cs: { bg: "from-blue-500 to-cyan-500", text: "text-blue-600" },
+  mech: { bg: "from-red-500 to-orange-500", text: "text-red-600" },
+  civil: { bg: "from-yellow-500 to-orange-500", text: "text-yellow-600" },
+  ece: { bg: "from-purple-500 to-pink-500", text: "text-purple-600" },
+  biotech: { bg: "from-green-500 to-emerald-500", text: "text-green-600" },
+  general: { bg: "from-gray-500 to-slate-500", text: "text-gray-600" },
 };
 
 // Mock reviews data (localStorage mein store karenge)
@@ -40,50 +42,32 @@ const saveReviews = (bookId, reviews) => {
   try {
     localStorage.setItem(`reviews_${bookId}`, JSON.stringify(reviews));
   } catch (error) {
-    console.error('Failed to save reviews:', error);
+    console.error("Failed to save reviews:", error);
   }
 };
 
 export default function BookDetails() {
   const { id } = useParams(); // URL se book ID lena
   const navigate = useNavigate();
-  
+  const BASE_URL = import.meta.env.VITE_BASE_URL;
+
   const [book, setBook] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [reviewText, setReviewText] = useState("");
   const [reviewerName, setReviewerName] = useState("");
   const [rating, setRating] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  const { data, error, isLoading } = useSWR(
+    `${BASE_URL}/book/${id}`,
+    getBookByID
+  );
+
   // Load book data from booksData based on ID
   useEffect(() => {
-    const loadBookData = async () => {
-      setIsLoading(true);
-      
-      // Simulate API delay for smooth UX
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Find book by ID from booksData (handle both string and number IDs)
-      const foundBook = booksData.find(b => String(b.id) === String(id));
-      
-      if (foundBook) {
-        setBook(foundBook);
-        // Load reviews from localStorage
-        const storedReviews = getStoredReviews(id);
-        setReviews(storedReviews);
-      } else {
-        setBook(null);
-      }
-      
-      setIsLoading(false);
-    };
-
-    if (id) {
-      loadBookData();
-    }
-  }, [id]);
+    setBook(data);
+  }, [data]);
 
   const handleSubmitReview = async () => {
     if (!reviewText.trim() || !reviewerName.trim()) return;
@@ -104,10 +88,10 @@ export default function BookDetails() {
 
     const updatedReviews = [newReview, ...reviews];
     setReviews(updatedReviews);
-    
+
     // Save to localStorage
     saveReviews(id, updatedReviews);
-    
+
     // Reset form
     setReviewText("");
     setReviewerName("");
@@ -190,46 +174,55 @@ export default function BookDetails() {
           <div className="lg:col-span-1">
             <div className="sticky top-24">
               {/* Book Cover Card */}
-              <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-100 overflow-hidden">
-                <div className={`h-2 bg-gradient-to-r ${branchStyle.bg}`}></div>
-                <div className={`aspect-[3/4] relative bg-gradient-to-br ${branchStyle.bg} flex items-center justify-center`}>
+              <div className=" rounded-2xl shadow-md border border-zinc-300 overflow-hidden">
+                <div
+                  className={`aspect-[3/4] relative ${branchStyle.bg} flex items-center justify-center border-b border-zinc-300/10`}
+                >
+                  
+                  <img
+                    className="h-full"
+                    src={book?.bookImage}
+                    alt="book cover"
+                  />
+
                   {/* Book Icon */}
                   <BookOpen className="h-32 w-32 text-white drop-shadow-2xl" />
-                  
+
                   {/* Branch Badge */}
                   <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-bold rounded-lg uppercase">
                     {book.branch}
                   </div>
-                  
+
                   {/* Year Badge */}
-                  {book.year && (
-                    <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 text-gray-800 text-xs font-bold rounded-lg">
-                      Year {book.year}
-                    </div>
-                  )}
+                  <div className="absolute top-4 right-4 px-3 py-1.5 bg-white/95 text-gray-800 text-xs font-bold rounded-lg">
+                    Year {book.year || "NA"}
+                  </div>
                 </div>
-                
+
                 {/* Stats Section */}
                 <div className="p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                       <span className="text-lg font-bold text-gray-900">
-                        {reviews.length > 0 ? averageRating.toFixed(1) : '0.0'}
+                        {reviews.length > 0 ? averageRating.toFixed(1) : "0.0"}
                       </span>
                       <span className="text-sm text-gray-600">
-                        ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                        ({reviews.length}{" "}
+                        {reviews.length === 1 ? "review" : "reviews"})
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Availability */}
-                  <div className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm ${
-                    book.available 
-                      ? 'bg-green-50 text-green-700 border-2 border-green-200' 
-                      : 'bg-red-50 text-red-700 border-2 border-red-200'
-                  }`}>
-                    {book.available ? (
+                  <div
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm ${
+                      book?.isAvailable
+                        ? "bg-green-50 text-green-700 border-2 border-green-200"
+                        : "bg-red-50 text-red-700 border-2 border-red-200"
+                    }`}
+                  >
+                    {book?.isAvailable ? (
                       <>
                         <CheckCircle className="h-5 w-5" />
                         Available Now
@@ -251,23 +244,28 @@ export default function BookDetails() {
             {/* Header */}
             <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-100 p-6">
               <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className={`px-3 py-1.5 bg-gradient-to-r ${branchStyle.bg} text-white rounded-full text-sm font-bold`}>
-                  {book.genre}
-                </span>
                 {book.publicationYear && (
                   <div className="flex items-center text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg">
                     <Calendar className="h-4 w-4 mr-1.5" />
-                    <span className="text-sm font-semibold">{book.publicationYear}</span>
+                    <span className="text-sm font-semibold">
+                      {book.publicationYear}
+                    </span>
                   </div>
                 )}
               </div>
-              
+
               <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
                 {book.title}
               </h1>
-              
+
+              <p
+                className={`py-1.5 text-gray-500 rounded-full text-xs font-semibold tracking-wider`}
+              >
+                {book.desc}
+              </p>
+
               <div className="flex flex-wrap items-center gap-4 text-gray-600">
-                <div className="flex items-center bg-gray-50 px-3 py-2 rounded-lg">
+                <div className="flex items-center bg-gray-50 py-2 rounded-lg">
                   <User className="h-4 w-4 mr-2 text-indigo-600" />
                   <span className="text-sm font-medium">by {book.author}</span>
                 </div>
@@ -303,7 +301,9 @@ export default function BookDetails() {
                   <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                     Author
                   </label>
-                  <p className="text-gray-900 font-medium mt-1">{book.author}</p>
+                  <p className="text-gray-900 font-medium mt-1">
+                    {book.author}
+                  </p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl">
                   <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -315,14 +315,18 @@ export default function BookDetails() {
                   <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                     Branch
                   </label>
-                  <p className="text-gray-900 font-medium mt-1 uppercase">{book.branch}</p>
+                  <p className="text-gray-900 font-medium mt-1 uppercase">
+                    {book.branch}
+                  </p>
                 </div>
                 {book.isbn && (
                   <div className="bg-gray-50 p-4 rounded-xl">
                     <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                       ISBN
                     </label>
-                    <p className="text-gray-900 font-medium mt-1 font-mono text-sm">{book.isbn}</p>
+                    <p className="text-gray-900 font-medium mt-1 font-mono text-sm">
+                      {book.isbn}
+                    </p>
                   </div>
                 )}
                 {book.publicationYear && (
@@ -330,7 +334,9 @@ export default function BookDetails() {
                     <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                       Publication Year
                     </label>
-                    <p className="text-gray-900 font-medium mt-1">{book.publicationYear}</p>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {book.publicationYear}
+                    </p>
                   </div>
                 )}
                 {book.publisher && (
@@ -338,7 +344,9 @@ export default function BookDetails() {
                     <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                       Publisher
                     </label>
-                    <p className="text-gray-900 font-medium mt-1">{book.publisher}</p>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {book.publisher}
+                    </p>
                   </div>
                 )}
               </div>
@@ -364,7 +372,10 @@ export default function BookDetails() {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="reviewerName" className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label
+                    htmlFor="reviewerName"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
                     Your Name
                   </label>
                   <input
@@ -377,7 +388,10 @@ export default function BookDetails() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="rating" className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label
+                    htmlFor="rating"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
                     Rating
                   </label>
                   <select
@@ -395,7 +409,10 @@ export default function BookDetails() {
                 </div>
               </div>
               <div>
-                <label htmlFor="reviewText" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label
+                  htmlFor="reviewText"
+                  className="block text-sm font-semibold text-gray-700 mb-2"
+                >
                   Your Review
                 </label>
                 <textarea
@@ -409,7 +426,9 @@ export default function BookDetails() {
               </div>
               <button
                 onClick={handleSubmitReview}
-                disabled={isSubmitting || !reviewText.trim() || !reviewerName.trim()}
+                disabled={
+                  isSubmitting || !reviewText.trim() || !reviewerName.trim()
+                }
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl"
               >
                 {isSubmitting ? (
