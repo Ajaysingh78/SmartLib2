@@ -32,8 +32,11 @@ const bookSchema = new mongoose.Schema({
     },
     copies: {
         type: [String],
+    },
+    isAvailable: {
+        type: Boolean,
+        default: true
     }
-
 });
 
 const Book = mongoose.model("Book", bookSchema);
