@@ -32,6 +32,9 @@
     },
     cover_url: {
         type: String,
+    },
+    copies : {
+        type : [String]
     }
 
 ````
