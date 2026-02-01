@@ -1,17 +1,24 @@
 import express from "express";
 import cors from "cors";
 import connectDB from "./config/connectDB.js";
-import addBookRouter from "./routes/add.book.route.js";
-import adminRouter from "./routes/admin.route.js";
+import cookieParser from "cookie-parser";
+
 const app = express();
 
 import dotenv from 'dotenv';
+
+
+import addBookRouter from "./routes/add.book.route.js";
+import adminRouter from "./routes/admin.route.js";
 import searchBookRouter from "./routes/search.book.route.js";
+import updateBookRouter from "./routes/update.book.route.js";
+
 dotenv.config();
 
 // middleware
 app.use(express.json());
 app.use(cors());
+app.use(cookieParser());
 
 // connect DB
 connectDB()
@@ -19,6 +26,7 @@ connectDB()
 // routes
 app.use("/add", addBookRouter);
 app.use("/search", searchBookRouter);
+app.use("/update", updateBookRouter);
 app.use("/admin", adminRouter);
 
 app.get("/", (req, res) => {

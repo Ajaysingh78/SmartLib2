@@ -2,7 +2,7 @@
 
 ## Book Schema
 
-````
+```
 
     title: {
         type: String,
@@ -37,4 +37,16 @@
         type : [String]
     }
 
-````
+```
+
+## Update Book
+
+```
+PATCH /books/65a91f2b9c3e1a0012abcd34
+Content-Type: application/json
+
+{
+  "title": "Clean Architecture",
+  "edition": "2nd"
+}
+```
