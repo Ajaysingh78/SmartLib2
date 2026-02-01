@@ -36,6 +36,14 @@ const bookSchema = new mongoose.Schema({
     isAvailable: {
         type: Boolean,
         default: true
+    },
+    views: {
+        type: Number,
+        default: 0
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
     }
 });
 
