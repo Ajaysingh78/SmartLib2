@@ -42,11 +42,12 @@
 ## Update Book
 
 ```
-PATCH /books/65a91f2b9c3e1a0012abcd34
-Content-Type: application/json
+PATCH /update/book/{bookId}
 
+body
 {
   "title": "Clean Architecture",
-  "edition": "2nd"
+  "edition": "2nd",
+  ...
 }
 ```
