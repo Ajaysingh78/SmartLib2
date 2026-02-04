@@ -1,57 +1,80 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  searchBookByTitle,  // ✅ This was working
+  getAllBooks,
   addBook as apiAddBook,
-  updateBook as apiUpdateBook
+  updateBook as apiUpdateBook,
+  deleteBook as apiDeleteBook,
+  toggleBookAvailability as apiToggleAvailability,
 } from '../api/axios';
 
 export function useBooks() {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const loadBooks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('🔄 Loading books...');
+
+      const response = await getAllBooks();
+      
+      console.log('📦 API Response:', response);
+
+      if (response?.status === 'success' && response?.data) {
+        // Sort by views (highest first)
+        const sortedBooks = [...response.data].sort((a, b) => 
+          (b.views || 0) - (a.views || 0)
+        );
+        
+        console.log('✅ Loaded', sortedBooks.length, 'books');
+        setBooks(sortedBooks);
+      } else {
+        console.warn('⚠️ No books found');
+        setBooks([]);
+      }
+
+      setLoading(false);
+      
+    } catch (err) {
+      console.error('❌ Failed to load books:', err);
+      setError(err.message || 'Failed to fetch books');
+      setLoading(false);
+      setBooks([]);
+    }
+  }, [refreshTrigger]);
 
   useEffect(() => {
     loadBooks();
-  }, []);
-
-  const loadBooks = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-
-    console.log('🔄 Loading books...'); // ← ADD THIS
-
-    const response = await searchBookByTitle(' ');
-    
-    console.log('📦 API Response:', response); // ← ADD THIS
-    console.log('📚 Books data:', response?.data); // ← ADD THIS
-
-    if (response && response.data) {
-      const sortedBooks = [...response.data].sort((a, b) => (b.views || 0) - (a.views || 0));
-      console.log('✅ Sorted books:', sortedBooks); // ← ADD THIS
-      setBooks(sortedBooks);
-    } else {
-      console.log('❌ No data in response'); // ← ADD THIS
-      setBooks([]);
-    }
-
-    setLoading(false);
-  } catch (err) {
-    console.error('❌ Failed to load books:', err);
-    setError(err.message || 'Failed to fetch books');
-    setLoading(false);
-    setBooks([]);
-  }
-};
+  }, [loadBooks]);
 
   const addBook = async (bookData) => {
     try {
+      console.log('➕ Adding book...', bookData);
+      
       const response = await apiAddBook(bookData);
-      await loadBooks(); // ✅ This will refresh after add
-      return { success: true, book: response.data || response };
+      
+      console.log('✅ Book added successfully:', response);
+      
+      // Force refresh to show new book immediately
+      setRefreshTrigger(prev => prev + 1);
+      
+      return { 
+        success: true, 
+        book: response.data || response,
+        message: 'Book added successfully! 🎉'
+      };
+      
     } catch (err) {
-      console.error('Failed to add book:', err);
-      return { success: false, error: err.message };
+      console.error('❌ Failed to add book:', err);
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to add book'
+      };
     }
   };
 
@@ -60,33 +83,105 @@ export function useBooks() {
       const bookId = updatedBookData._id || updatedBookData.id;
 
       if (!bookId) {
-        throw new Error('Book ID is required for update');
+        throw new Error('Book ID required');
       }
+
+      console.log('✏️ Updating book:', bookId);
 
       const { _id, id, createdAt, updatedAt, views, isAvailable, __v, ...updateData } = updatedBookData;
 
       const response = await apiUpdateBook(bookId, updateData);
-      await loadBooks(); // ✅ This will refresh after update
+      
+      console.log('✅ Book updated:', response);
+      
+      setRefreshTrigger(prev => prev + 1);
 
-      return { success: true, book: response.data || response };
+      return { 
+        success: true, 
+        book: response.data || response,
+        message: 'Book updated successfully! ✏️'
+      };
+      
     } catch (err) {
-      console.error('Failed to update book:', err);
-      return { success: false, error: err.message };
+      console.error('❌ Failed to update book:', err);
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to update book'
+      };
     }
   };
 
   const deleteBook = async (bookId) => {
-    setBooks(books.filter(book => (book._id || book.id) !== bookId));
-    return { success: true };
+    try {
+      console.log('🗑️ Deleting book:', bookId);
+      
+      // Optimistic update
+      setBooks(prevBooks => prevBooks.filter(book => 
+        (book._id || book.id) !== bookId
+      ));
+      
+      const response = await apiDeleteBook(bookId);
+      
+      console.log('✅ Book deleted:', response);
+      
+      return { 
+        success: true,
+        message: 'Book deleted successfully! 🗑️'
+      };
+      
+    } catch (err) {
+      console.error('❌ Failed to delete book:', err);
+      
+      // Rollback on error
+      setRefreshTrigger(prev => prev + 1);
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to delete book'
+      };
+    }
   };
 
   const toggleAvailability = async (bookId) => {
-    const updatedBooks = books.map(b =>
-      (b._id || b.id) === bookId ? { ...b, isAvailable: !b.isAvailable } : b
-    );
-    setBooks(updatedBooks);
-    return { success: true };
+    try {
+      console.log('🔄 Toggling availability:', bookId);
+      
+      // Optimistic update
+      setBooks(prevBooks => 
+        prevBooks.map(book =>
+          (book._id || book.id) === bookId 
+            ? { ...book, isAvailable: !book.isAvailable } 
+            : book
+        )
+      );
+      
+      const response = await apiToggleAvailability(bookId);
+      
+      console.log('✅ Availability toggled:', response);
+      
+      return { 
+        success: true,
+        message: 'Availability updated! 🔄'
+      };
+      
+    } catch (err) {
+      console.error('❌ Failed to toggle availability:', err);
+      
+      // Rollback on error
+      setRefreshTrigger(prev => prev + 1);
+      
+      return { 
+        success: false, 
+        error: err.message || 'Failed to update availability'
+      };
+    }
   };
+
+  const refreshBooks = useCallback(() => {
+    console.log('🔄 Manual refresh triggered');
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   return {
     books,
@@ -96,6 +191,6 @@ export function useBooks() {
     updateBook,
     deleteBook,
     toggleAvailability,
-    refreshBooks: loadBooks
+    refreshBooks,
   };
 }

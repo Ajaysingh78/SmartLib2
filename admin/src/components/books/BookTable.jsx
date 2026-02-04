@@ -1,17 +1,16 @@
 // 📁 Location: admin/src/components/books/BookTable.jsx
-// ✅ Books Data Table Component
+// ✅ Books Data Table Component - FIXED
 
 import React from 'react';
 import { BookOpen } from 'lucide-react';
 import BookTableRow from './BookTableRow';
 
 /**
- * Books Table Component
- * @param {array} books - Filtered books to display
- * @param {number} totalBooks - Total books count
- * @param {function} onToggleAvailability - Toggle book availability
- * @param {function} onEditBook - Edit book handler
- * @param {function} onDeleteBook - Delete book handler
+ * ✅ FIXED Books Table Component
+ * 
+ * CHANGES:
+ * - Fixed key prop: book.id → book._id || book.id
+ * - This matches backend MongoDB _id field
  */
 function BookTable({ 
   books, 
@@ -47,10 +46,13 @@ function BookTable({
                 Author
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Category
+                Department
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 ISBN
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Views
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
@@ -61,11 +63,11 @@ function BookTable({
             </tr>
           </thead>
           
-          {/* Table Body */}
+          {/* Table Body - ✅ FIXED KEY PROP */}
           <tbody className="bg-white divide-y divide-gray-200">
             {books.map((book) => (
               <BookTableRow
-                key={book.id}
+                key={book._id || book.id} // ✅ FIXED: Use _id from MongoDB
                 book={book}
                 onToggleAvailability={onToggleAvailability}
                 onEdit={onEditBook}
