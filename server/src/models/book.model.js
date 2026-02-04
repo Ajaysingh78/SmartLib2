@@ -15,7 +15,7 @@ const bookSchema = new mongoose.Schema({
     department: {
         type: String,
         required: true,
-        enum: ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "MBA", "MCA", "BBA", "BCA", "B.COM", "B.SC", "B.PHARM", "B.ARCH", "B.DES", "B.ED", "B.LLB", "B.PT", "B.HM", "B.MS", "B.AS", "B.FA", "B.FT"]
+        enum: ["CSE", "IT", "ECE", "EEE", "MECH", "CIVIL", "MBA", "MCA", "BBA", "BCA", "B.COM", "B.SC", "B.PHARM", "B.ARCH", "B.DES", "B.ED", "B.LLB", "B.PT", "B.HM", "B.MS", "B.AS", "B.FA", "B.FT", "AGRICULTURE"]
     },
     isbn: {
         type: String,
@@ -41,7 +41,7 @@ const bookSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    createdAt: {
+    updatedAt: {
         type: Date,
         default: Date.now
     }
