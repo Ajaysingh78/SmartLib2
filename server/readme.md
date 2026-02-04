@@ -140,3 +140,11 @@ RESPONSE
     ]
 }
 ```
+
+# Delete Book
+
+### Delete a single book
+```
+DELETE /delete/book/{bookId}
+```
+
