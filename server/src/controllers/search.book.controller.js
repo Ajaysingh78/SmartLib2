@@ -121,4 +121,37 @@ async function searchUnAvailbleBooks(req, res) {
     }
 }
 
-export { searchBookByTitle, searchByViews, searchByPage, searchUnAvailbleBooks };
+async function searchBooksWithoutImage(req,res){
+    try {
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+
+        const skip = (page - 1) * limit;
+
+        const [books, total] = await Promise.all([
+            Book.find({ image: null })
+                .skip(skip)
+                .limit(limit),
+            Book.countDocuments({ image: null })
+        ]);
+
+        return res.status(200).json({
+            status: "success",
+            pagination: {
+                totalItems: total,
+                currentPage: page,
+                totalPages: Math.ceil(total / limit),
+                pageSize: limit
+            },
+            data: books
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            status: "failed",
+            message: error.message
+        });
+    }
+}
+
+export { searchBookByTitle, searchByViews, searchByPage, searchUnAvailbleBooks,searchBooksWithoutImage };

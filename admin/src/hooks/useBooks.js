@@ -8,7 +8,9 @@ import {
   toggleBookAvailability as apiToggleAvailability,
   getDashboardStats,
   searchBookByTitle,
-  getUnavailableBooks // Import new API
+  getUnavailableBooks,
+  getBooksWithoutImage,
+  getMostViewedBooks
 } from '../api/axios';
 
 export function useBooks() {
@@ -29,20 +31,35 @@ export function useBooks() {
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10; // Fixed limit as per requirement
 
-  // Filter State (Derived from URL or internal state if needed, but for now we pass it to loadBooks)
-  const currentFilter = searchParams.get("filter") || "all";
+  // Filter State (Derived from URL)
+  const filters = {
+    availability: searchParams.get("availability") || "all",
+    image: searchParams.get("image") || "all",
+    sort: searchParams.get("sort") || "default"
+  };
 
   const loadBooks = useCallback(async (silent = false) => {
     try {
-      if (!silent) setLoading(true); // only show loading spinner if not silent
+      if (!silent) setLoading(true);
       setError(null);
 
-      console.log(`🔄 Loading books (Page ${page}, Filter: ${currentFilter}) ${silent ? '(Silent)' : ''}...`);
+      console.log(`🔄 Loading books (Page ${page}, Filters:`, filters, `) ${silent ? '(Silent)' : ''}...`);
 
       let booksPromise;
-      if (currentFilter === 'unavailable') {
+      // 1. Priority: Unavailable (Most restrictive usually)
+      if (filters.availability === 'unavailable') {
         booksPromise = getUnavailableBooks(page, limit);
-      } else {
+      }
+      // 2. Priority: No Image
+      else if (filters.image === 'no-image') {
+        booksPromise = getBooksWithoutImage(page, limit);
+      }
+      // 3. Priority: Most Viewed (Sort)
+      else if (filters.sort === 'most-viewed') {
+        booksPromise = getMostViewedBooks(page, limit);
+      }
+      // 4. Default: All Books
+      else {
         booksPromise = getAllBooks(page, limit);
       }
 
@@ -60,6 +77,34 @@ export function useBooks() {
 
       if (booksResponse?.status === 'success') {
         let fetchedBooks = booksResponse.data || [];
+
+        // ✅ Apply Client-side Secondary Filtering & Sorting
+        // Since we picked ONE API to call, we must enforce other active filters manually on the returned page.
+        // Note: This only filters the CURRENT PAGE. Ideal solution requires backend combinatorial search.
+
+        // Filter: Availability (if we didn't fetch unavailable API)
+        if (filters.availability === 'unavailable' && filters.availability !== 'unavailable') {
+          // Logic above ensures if availability is unavailable, we fetched unavailable API. 
+          // So we don't need to double filter here typically unless logic changes.
+        }
+
+        // Filter: Image (if we fetched Unavailable or All)
+        if (filters.image === 'no-image') {
+          // If we called getUnavailableBooks, we might have books WITH images. Filter them out.
+          // If we called getBooksWithoutImage, we are good.
+          if (filters.availability === 'unavailable' || filters.sort === 'most-viewed' || (filters.availability === 'all' && filters.sort === 'default')) {
+            fetchedBooks = fetchedBooks.filter(book => !book.image);
+          }
+        }
+
+        // Sort: Most Viewed (if we fetched Unavailable or No Image or All)
+        if (filters.sort === 'most-viewed') {
+          // If we called getMostViewedBooks, it's already sorted.
+          // If we called others, we need to sort client-side.
+          if (filters.availability === 'unavailable' || filters.image === 'no-image' || (filters.availability === 'all' && filters.image === 'all')) {
+            fetchedBooks.sort((a, b) => (b.views || 0) - (a.views || 0));
+          }
+        }
 
         // Handle pagination metadata
         if (booksResponse.pagination) {
@@ -82,7 +127,7 @@ export function useBooks() {
       setLoading(false);
       setBooks([]);
     }
-  }, [refreshTrigger, page, currentFilter]); // Reload when refresh, page, or filter changes
+  }, [refreshTrigger, page, filters.availability, filters.image, filters.sort]); // Reload when any filter changes
 
   useEffect(() => {
     loadBooks();
@@ -269,15 +314,24 @@ export function useBooks() {
       if (response.status === 'success') {
         let results = response.data;
 
-        // ✅ Client-side filter for availability if active
-        // (Since backend search endpoint returns all matches)
-        if (currentFilter === 'unavailable') {
+        // ✅ Apply All Active Filters Client-Side
+
+        // 1. Availability
+        if (filters.availability === 'unavailable') {
           results = results.filter(book => !book.isAvailable);
-        } else if (currentFilter === 'available') { // Future proofing
-          results = results.filter(book => book.isAvailable);
         }
 
-        console.log(`✅ Search results (${currentFilter}):`, results.length);
+        // 2. Image
+        if (filters.image === 'no-image') {
+          results = results.filter(book => !book.image);
+        }
+
+        // 3. Sort
+        if (filters.sort === 'most-viewed') {
+          results.sort((a, b) => (b.views || 0) - (a.views || 0));
+        }
+
+        console.log(`✅ Search results (Filtered):`, results.length);
         setBooks(results);
         // Reset pagination for search results
         setTotalItems(results.length);
@@ -312,9 +366,13 @@ export function useBooks() {
     totalItems,
     changePage,
     // Filter controls
-    currentFilter,
-    setFilter: (filter) => {
-      setSearchParams({ page: "1", filter }); // Reset to page 1 on filter change
+    filters,
+    updateFilter: (key, value) => {
+      setSearchParams(prev => {
+        prev.set(key, value);
+        prev.set("page", "1"); // Reset to page 1
+        return prev;
+      });
     }
   };
 }

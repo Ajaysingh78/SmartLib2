@@ -15,9 +15,9 @@ function SearchBar({
   selectedCategory,
   setSelectedCategory,
   categories,
-  // New props for availability filter
-  currentFilter,
-  setFilter,
+  // New props for active filters
+  filters,
+  updateFilter,
 }) {
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -34,14 +34,34 @@ function SearchBar({
           />
         </div>
 
-        {/* Availability Filter Dropdown */}
+        {/* Availability Filter */}
         <select
-          value={currentFilter || "all"}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent lg:w-48 transition-all"
+          value={filters?.availability || "all"}
+          onChange={(e) => updateFilter("availability", e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
-          <option value="all">All Books</option>
-          <option value="unavailable">Unavailable Books</option>
+          <option value="all">Availability: All</option>
+          <option value="unavailable">Unavailable Only</option>
+        </select>
+
+        {/* Image Filter */}
+        <select
+          value={filters?.image || "all"}
+          onChange={(e) => updateFilter("image", e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+        >
+          <option value="all">Images: All</option>
+          <option value="no-image">No Image Only</option>
+        </select>
+
+        {/* Sort Filter */}
+        <select
+          value={filters?.sort || "default"}
+          onChange={(e) => updateFilter("sort", e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+        >
+          <option value="default">Sort: Default</option>
+          <option value="most-viewed">Sort: Most Viewed</option>
         </select>
 
         {/* Category Filter Dropdown */}

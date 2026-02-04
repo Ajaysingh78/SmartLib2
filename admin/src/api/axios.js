@@ -118,6 +118,16 @@ export const getUnavailableBooks = async (page = 1, limit = 20) => {
   return await apiCall(`/search/unavailable-books?page=${page}&limit=${limit}`);
 };
 
+export const getBooksWithoutImage = async (page = 1, limit = 20) => {
+  console.log(`🔍 Fetching books without image: page ${page}, limit ${limit}`);
+  return await apiCall(`/search/without-image?page=${page}&limit=${limit}`);
+};
+
+export const getMostViewedBooks = async (page = 1, limit = 20) => {
+  console.log(`🔍 Fetching most viewed books: page ${page}, limit ${limit}`);
+  return await apiCall(`/search/most-viewed?page=${page}&limit=${limit}`);
+};
+
 export const incrementBookViews = async (bookId) => {
   return await apiCall(`/update/book/views/${bookId}`, {
     method: 'PATCH',
