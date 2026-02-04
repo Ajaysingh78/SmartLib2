@@ -14,6 +14,7 @@ import searchBookRouter from "./routes/search.book.route.js";
 import updateBookRouter from "./routes/update.book.route.js";
 import deleteBookRouter from "./routes/delete.book.route.js";
 import dashboardRouter from "./routes/dashboard.route.js";
+import featureRouter from "./routes/feature.route.js";
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use("/search", searchBookRouter);
 app.use("/update", updateBookRouter);
 app.use("/delete", deleteBookRouter);
 app.use("/dashboard", dashboardRouter);
+app.use("/feature", featureRouter);
 
 // admin routes
 app.use("/admin", adminRouter);
