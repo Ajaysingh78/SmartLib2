@@ -17,6 +17,7 @@ import EditBook from "./EditBook";
 
 // Common Components
 import SearchBar from "../components/common/SearchBar";
+import ConfirmationModal from "../components/common/ConfirmationModal";
 
 // Hooks
 import { useBooks } from "../hooks/useBooks";
@@ -85,6 +86,10 @@ function AdminDashboard() {
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Delete Confirmation State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState(null);
 
   // ===============================
   // HANDLERS - User Actions
@@ -167,18 +172,19 @@ function AdminDashboard() {
   /**
    * Handle Delete Book
    */
-  const handleDeleteBook = async (bookId) => {
-    console.log("🗑️ Dashboard: Delete requested for book:", bookId);
+  const handleDeleteBook = (bookId) => {
+    setBookToDelete(bookId);
+    setDeleteModalOpen(true);
+  };
 
-    if (window.confirm("Are you sure you want to delete this book?")) {
-      const result = await deleteBook(bookId);
-
-      if (result.success) {
-        console.log("✅ Dashboard: Book deleted successfully");
-      } else {
-        console.error("❌ Dashboard: Delete failed:", result.error);
-        alert("Failed to delete book: " + result.error);
-      }
+  /**
+   * User Confirmed Delete
+   */
+  const confirmDelete = async () => {
+    if (bookToDelete) {
+      await deleteBook(bookToDelete);
+      setDeleteModalOpen(false);
+      setBookToDelete(null);
     }
   };
 
@@ -288,6 +294,16 @@ function AdminDashboard() {
             setSelectedBook(null);
           }}
           onBookUpdated={handleUpdateBook}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={deleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          onConfirm={confirmDelete}
+          title="Delete Book"
+          message="Are you sure you want to permanently delete this book? This action cannot be undone."
+          confirmText="Delete Book"
         />
 
         {/* Stats Section */}

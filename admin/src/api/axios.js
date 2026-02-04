@@ -119,13 +119,9 @@ export const incrementBookViews = async (bookId) => {
 };
 
 export const deleteBook = async (bookId) => {
-  // Uncomment below if backend supports DELETE
-  // return await apiCall(`/delete/book/${bookId}`, { method: 'DELETE' });
-
-  console.warn('⚠️ Delete API not implemented in frontend yet');
-  return Promise.resolve({
-    status: 'success',
-    message: 'Book deleted (frontend only - refresh will bring it back)'
+  console.log(`🗑️ API: Deleting book ${bookId}...`);
+  return await apiCall(`/delete/${bookId}`, {
+    method: 'DELETE'
   });
 };
 

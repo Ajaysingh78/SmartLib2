@@ -25,12 +25,12 @@ export function useBooks() {
   const [totalItems, setTotalItems] = useState(0);
   const limit = 10; // Fixed limit as per requirement
 
-  const loadBooks = useCallback(async () => {
+  const loadBooks = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true); // only show loading spinner if not silent
       setError(null);
 
-      console.log(`🔄 Loading books (Page ${page})...`);
+      console.log(`🔄 Loading books (Page ${page}) ${silent ? '(Silent)' : ''}...`);
 
       const response = await getAllBooks(page, limit);
 
@@ -146,6 +146,9 @@ export function useBooks() {
       const response = await apiDeleteBook(bookId);
 
       console.log('✅ Book deleted:', response);
+
+      // Trigger silent server refresh to get fresh data without UI flicker
+      loadBooks(true);
 
       return {
         success: true,
