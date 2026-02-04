@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminLogout } from "../api/axios";
 
@@ -70,6 +70,7 @@ function AdminDashboard() {
     totalPages,
     totalItems,
     changePage,
+    searchBooks, // ✅ Added searchBooks
   } = useBooks();
 
   const {
@@ -77,8 +78,48 @@ function AdminDashboard() {
     setSearchQuery,
     selectedCategory,
     setSelectedCategory,
-    filteredBooks,
+    // filteredBooks, // ❌ DISABLE client-side filter for titles
   } = useBookFilters(books);
+
+  // ===============================
+  // SEARCH EFFECT
+  // ===============================
+  // ✅ Server-side search with debounce
+  // Using useEffect to watch searchQuery from filter hook
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+  // Debounce logic
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500); // 500ms debounce
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery]);
+
+  // Trigger search when debounced query changes
+  useEffect(() => {
+    // Only search if query changed to avoid initial double load
+    if (debouncedQuery !== undefined) {
+      // If we have a category selected, we might want to filtered client side OR send to backend
+      // For now, let's assume search title overrides everything or works with it.
+      // The requirement is specific to "Get /search/book?title=..."
+
+      // Call the search function from useBooks
+      // If query is empty, it reloads all books
+      // If query has text, it hits the search endpoint
+      // Pass the query directly
+      searchBooks(debouncedQuery);
+    }
+  }, [debouncedQuery]); // Dependency on debouncedQuery
+
+  // Filter for Category (Client-side for now, as API might not support both yet)
+  const displayBooks = books.filter((book) => {
+    if (selectedCategory === "all") return true;
+    return book.department === selectedCategory;
+  });
 
   // ===============================
   // UI STATE
@@ -328,7 +369,7 @@ function AdminDashboard() {
           <BookTableSkeleton />
         ) : (
           <BookTable
-            books={filteredBooks}
+            books={displayBooks}
             totalBooks={totalItems}
             onToggleAvailability={handleToggleAvailability}
             onDeleteBook={handleDeleteBook}

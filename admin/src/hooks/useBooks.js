@@ -6,7 +6,8 @@ import {
   updateBook as apiUpdateBook,
   deleteBook as apiDeleteBook,
   toggleBookAvailability as apiToggleAvailability,
-  getDashboardStats
+  getDashboardStats,
+  searchBookByTitle // Import Search API
 } from '../api/axios';
 
 export function useBooks() {
@@ -238,6 +239,38 @@ export function useBooks() {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
+  const searchBooks = async (query) => {
+    try {
+      if (!query || query.trim() === '') {
+        // If query is empty, reload default paginated books
+        loadBooks();
+        return;
+      }
+
+      setLoading(true);
+      console.log('🔍 Searching books for:', query);
+
+      const response = await searchBookByTitle(query);
+
+      if (response.status === 'success') {
+        console.log('✅ Search results:', response.data.length);
+        setBooks(response.data);
+        // Reset pagination for search results (backend search isn't paginated yet in this endpoint)
+        setTotalItems(response.data.length);
+        setTotalPages(1);
+      } else {
+        setBooks([]);
+        setTotalItems(0);
+      }
+      setLoading(false);
+
+    } catch (err) {
+      console.error('❌ Search failed:', err);
+      setError(err.message || 'Search failed');
+      setLoading(false);
+    }
+  };
+
   return {
     books,
     stats,
@@ -248,6 +281,7 @@ export function useBooks() {
     deleteBook,
     toggleAvailability,
     refreshBooks,
+    searchBooks, // Export search function
     // Pagination
     page,
     totalPages,
