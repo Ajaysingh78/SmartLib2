@@ -13,66 +13,82 @@ export function useBooks() {
   const [error, setError] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 10; // Fixed limit as per requirement
+
   const loadBooks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('🔄 Loading books...');
+      console.log(`🔄 Loading books (Page ${page})...`);
 
-      const response = await getAllBooks();
-      
+      const response = await getAllBooks(page, limit);
+
       console.log('📦 API Response:', response);
 
-      if (response?.status === 'success' && response?.data) {
-        // Sort by views (highest first)
-        const sortedBooks = [...response.data].sort((a, b) => 
-          (b.views || 0) - (a.views || 0)
-        );
-        
-        console.log('✅ Loaded', sortedBooks.length, 'books');
-        setBooks(sortedBooks);
+      if (response?.status === 'success') {
+        let fetchedBooks = response.data || [];
+
+        // Handle pagination metadata
+        if (response.pagination) {
+          setTotalPages(response.pagination.totalPages);
+          setTotalItems(response.pagination.totalItems);
+        }
+
+        console.log('✅ Loaded', fetchedBooks.length, 'books');
+        setBooks(fetchedBooks);
       } else {
         console.warn('⚠️ No books found');
         setBooks([]);
       }
 
       setLoading(false);
-      
+
     } catch (err) {
       console.error('❌ Failed to load books:', err);
       setError(err.message || 'Failed to fetch books');
       setLoading(false);
       setBooks([]);
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, page]); // Reload when refresh or page changes
 
   useEffect(() => {
     loadBooks();
   }, [loadBooks]);
 
+  const changePage = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   const addBook = async (bookData) => {
     try {
       console.log('➕ Adding book...', bookData);
-      
+
       const response = await apiAddBook(bookData);
-      
+
       console.log('✅ Book added successfully:', response);
-      
+
       // Force refresh to show new book immediately
       setRefreshTrigger(prev => prev + 1);
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         book: response.data || response,
         message: 'Book added successfully! 🎉'
       };
-      
+
     } catch (err) {
       console.error('❌ Failed to add book:', err);
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: err.message || 'Failed to add book'
       };
     }
@@ -91,22 +107,22 @@ export function useBooks() {
       const { _id, id, createdAt, updatedAt, views, isAvailable, __v, ...updateData } = updatedBookData;
 
       const response = await apiUpdateBook(bookId, updateData);
-      
+
       console.log('✅ Book updated:', response);
-      
+
       setRefreshTrigger(prev => prev + 1);
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         book: response.data || response,
         message: 'Book updated successfully! ✏️'
       };
-      
+
     } catch (err) {
       console.error('❌ Failed to update book:', err);
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: err.message || 'Failed to update book'
       };
     }
@@ -115,29 +131,29 @@ export function useBooks() {
   const deleteBook = async (bookId) => {
     try {
       console.log('🗑️ Deleting book:', bookId);
-      
+
       // Optimistic update
-      setBooks(prevBooks => prevBooks.filter(book => 
+      setBooks(prevBooks => prevBooks.filter(book =>
         (book._id || book.id) !== bookId
       ));
-      
+
       const response = await apiDeleteBook(bookId);
-      
+
       console.log('✅ Book deleted:', response);
-      
-      return { 
+
+      return {
         success: true,
         message: 'Book deleted successfully! 🗑️'
       };
-      
+
     } catch (err) {
       console.error('❌ Failed to delete book:', err);
-      
+
       // Rollback on error
       setRefreshTrigger(prev => prev + 1);
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: err.message || 'Failed to delete book'
       };
     }
@@ -146,33 +162,33 @@ export function useBooks() {
   const toggleAvailability = async (bookId) => {
     try {
       console.log('🔄 Toggling availability:', bookId);
-      
+
       // Optimistic update
-      setBooks(prevBooks => 
+      setBooks(prevBooks =>
         prevBooks.map(book =>
-          (book._id || book.id) === bookId 
-            ? { ...book, isAvailable: !book.isAvailable } 
+          (book._id || book.id) === bookId
+            ? { ...book, isAvailable: !book.isAvailable }
             : book
         )
       );
-      
+
       const response = await apiToggleAvailability(bookId);
-      
+
       console.log('✅ Availability toggled:', response);
-      
-      return { 
+
+      return {
         success: true,
         message: 'Availability updated! 🔄'
       };
-      
+
     } catch (err) {
       console.error('❌ Failed to toggle availability:', err);
-      
+
       // Rollback on error
       setRefreshTrigger(prev => prev + 1);
-      
-      return { 
-        success: false, 
+
+      return {
+        success: false,
         error: err.message || 'Failed to update availability'
       };
     }
@@ -192,5 +208,10 @@ export function useBooks() {
     deleteBook,
     toggleAvailability,
     refreshBooks,
+    // Pagination
+    page,
+    totalPages,
+    totalItems,
+    changePage
   };
 }
