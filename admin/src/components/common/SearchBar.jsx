@@ -38,7 +38,7 @@ function SearchBar({
         <select
           value={filters?.availability || "all"}
           onChange={(e) => updateFilter("availability", e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          className="w-full lg:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
           <option value="all">Availability: All</option>
           <option value="unavailable">Unavailable Only</option>
@@ -48,7 +48,7 @@ function SearchBar({
         <select
           value={filters?.image || "all"}
           onChange={(e) => updateFilter("image", e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          className="w-full lg:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
           <option value="all">Images: All</option>
           <option value="no-image">No Image Only</option>
@@ -58,7 +58,7 @@ function SearchBar({
         <select
           value={filters?.sort || "default"}
           onChange={(e) => updateFilter("sort", e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+          className="w-full lg:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
           <option value="default">Sort: Default</option>
           <option value="most-viewed">Sort: Most Viewed</option>
@@ -68,7 +68,7 @@ function SearchBar({
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent lg:w-48 transition-all"
+          className="w-full lg:w-48 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
         >
           <option value="all">All Categories</option>
           {categories.map((category) => (
