@@ -5,7 +5,7 @@ import axios from "axios";
 
 const VITE_SERVER_URL =
   import.meta.env.VITE_SERVER_URL ||
-  "https://smartlib-xgxi.onrender.com";
+  "/api";
 
 const axiosInstance = axios.create({
   baseURL: VITE_SERVER_URL,
