@@ -21,7 +21,7 @@ dotenv.config();
 // middleware
 app.use(express.json());
 app.use(cors({
-    origin: ["*"],
+    origin: true, // ✅ Allows any origin (dynamically reflects request origin) and supports credentials
     credentials: true
 }));
 app.use(cookieParser());
