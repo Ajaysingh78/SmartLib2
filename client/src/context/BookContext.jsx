@@ -1,5 +1,5 @@
 // ============================================
-// 📦 BOOK CONTEXT - OPTIMIZED VERSION
+// 📦 BOOK CONTEXT - FIXED VERSION
 // ============================================
 
 import { createContext, useState, useContext, useCallback, useEffect, useRef } from "react";
@@ -17,8 +17,8 @@ export function BookProvider({ children }) {
   
   // State
   const [allBooks, setAllBooks] = useState([]);
-  const [filteredBooks, setFilteredBooks] = useState([]); // ← NEW: Store filtered results
-  const [loading, setLoading] = useState(true); // ← Start as true
+  const [filteredBooks, setFilteredBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedDepartment, setSelectedDepartment] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,11 +50,11 @@ export function BookProvider({ children }) {
     try {
       const response = await getAllBooks();
       
-      if (!isMounted.current) return; // ← Prevent state update if unmounted
+      if (!isMounted.current) return;
       
       const books = response.data || [];
       setAllBooks(books);
-      setFilteredBooks(books); // ← Initialize filtered books
+      setFilteredBooks(books);
       console.log(`✅ BookContext: Loaded ${books.length} books`);
       
       return books;
@@ -76,11 +76,40 @@ export function BookProvider({ children }) {
   }, []);
 
   // ============================================
-  // 📖 FETCH SINGLE BOOK BY ID
+  // 📖 GET BOOK FROM CACHE (NEW - NO API CALL)
+  // ============================================
+  const getBookFromCache = useCallback((bookId) => {
+    console.log(`📖 BookContext: Getting book ${bookId} from cache`);
+    
+    // Try to find by _id or id field
+    const book = allBooks.find(
+      (b) => b._id === bookId || b.id === bookId
+    );
+    
+    if (book) {
+      console.log(`✅ BookContext: Found "${book.title}" in cache`);
+      return book;
+    }
+    
+    console.warn(`⚠️ BookContext: Book ${bookId} not found in cache`);
+    return null;
+  }, [allBooks]);
+
+  // ============================================
+  // 📖 FETCH SINGLE BOOK BY ID (FALLBACK)
   // ============================================
   const fetchBookById = useCallback(async (bookId) => {
-    console.log(`📖 BookContext: Fetching book ${bookId}`);
+    console.log(`📖 BookContext: Attempting to fetch book ${bookId}`);
     
+    // First, try to get from cache
+    const cachedBook = getBookFromCache(bookId);
+    if (cachedBook) {
+      console.log("✅ Using cached book instead of API");
+      return cachedBook;
+    }
+    
+    // If not in cache, try API (will likely fail with 400)
+    console.log("⚠️ Book not in cache, trying API...");
     setLoading(true);
     setError(null);
 
@@ -89,15 +118,15 @@ export function BookProvider({ children }) {
       
       if (!isMounted.current) return null;
       
-      console.log("✅ BookContext: Book fetched:", book.title);
+      console.log("✅ BookContext: Book fetched:", book?.title);
       return book;
       
     } catch (err) {
       if (!isMounted.current) return null;
       
-      const errorMsg = err.message || "Failed to load book details";
+      const errorMsg = "Book not found. Please go back and try again.";
       setError(errorMsg);
-      console.error("❌ BookContext Error:", errorMsg);
+      console.error("❌ BookContext Error:", err.message);
       
       return null;
       
@@ -106,7 +135,7 @@ export function BookProvider({ children }) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [getBookFromCache]);
 
   // ============================================
   // 🏢 FILTER BY DEPARTMENT
@@ -186,7 +215,7 @@ export function BookProvider({ children }) {
     } else {
       setFilteredBooks(allBooks);
     }
-  }, [allBooks]); // Only depend on allBooks
+  }, [allBooks]);
 
   // ============================================
   // 👁️ INCREMENT BOOK VIEWS
@@ -235,7 +264,7 @@ export function BookProvider({ children }) {
   const contextValue = {
     // State
     allBooks,
-    filteredBooks, // ← NEW: Filtered results
+    filteredBooks,
     loading,
     error,
     selectedDepartment,
@@ -244,13 +273,14 @@ export function BookProvider({ children }) {
     // Actions
     fetchAllBooks,
     fetchBookById,
+    getBookFromCache, // ← NEW: Get book without API call
     fetchPopularBooks,
     filterByDepartment,
     searchBooks,
     updateBookViews,
     refreshBooks,
     clearError,
-    resetFilters, // ← NEW
+    resetFilters,
     
     // Setters
     setSelectedDepartment,

@@ -1,5 +1,5 @@
 // ============================================
-// 📖 BOOK DETAIL PAGE - PRODUCTION READY
+// 📖 BOOK DETAIL PAGE - FIXED VERSION
 // Mobile-First | Accessible | Optimized
 // ============================================
 
@@ -19,8 +19,9 @@ import {
   AlertCircle
 } from "lucide-react";
 
-// API imports (make sure these exist!)
-import { getBookById, updateBookViews } from "../api/bookAPI";
+// ✅ FIXED: Import from context instead of API
+import { useBooks } from "../context/BookContext";
+import { updateBookViews } from "../api/bookAPI";
 
 // ============================================
 // 🎨 LOADING SKELETON COMPONENT
@@ -59,6 +60,9 @@ export default function BookDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  // ✅ FIXED: Get book from context instead of API
+  const { getBookFromCache, allBooks, loading: contextLoading } = useBooks();
+
   // State
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,25 +72,42 @@ export default function BookDetailPage() {
   // Fetch book on mount
   useEffect(() => {
     fetchBookDetail();
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, allBooks, contextLoading]);
 
-  // Fetch book details
+  // ✅ FIXED: Fetch book details from cache
   const fetchBookDetail = async () => {
+    console.log(`📖 BookDetailPage: Loading book ${id}`);
+    
+    // Wait for context to finish loading
+    if (contextLoading) {
+      console.log("⏳ Waiting for books to load...");
+      setLoading(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      // Fix: Space between await and function
-      const bookData = await getBookById(id);
+      // ✅ Get book from cache (already loaded in context)
+      const bookData = getBookFromCache(id);
+      
+      if (!bookData) {
+        throw new Error("Book not found in catalog");
+      }
+
+      console.log(`✅ BookDetailPage: Loaded "${bookData.title}"`);
       setBook(bookData);
 
       // Update view count (non-blocking)
       updateBookViews(id).catch((err) => {
         console.log("View count update failed:", err);
       });
+      
     } catch (err) {
       setError(err.message || "Failed to load book details");
-      console.error("Error fetching book:", err);
+      console.error("❌ Error fetching book:", err);
     } finally {
       setLoading(false);
     }
@@ -105,7 +126,7 @@ export default function BookDetailPage() {
   // ============================================
   // 🎨 LOADING STATE
   // ============================================
-  if (loading) {
+  if (loading || contextLoading) {
     return <BookDetailSkeleton />;
   }
 
@@ -350,20 +371,7 @@ export default function BookDetailPage() {
 
           {/* Action Buttons - Mobile Friendly */}
           <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <button 
-              className="btn btn-primary flex-1"
-              onClick={() => alert("Issue book functionality coming soon!")}
-            >
-              <BookOpen className="h-5 w-5" />
-              Issue Book
-            </button>
-            <button 
-              className="btn btn-secondary flex-1"
-              onClick={() => alert("Wishlist functionality coming soon!")}
-            >
-              <Heart className="h-5 w-5" />
-              Add to Wishlist
-            </button>
+            
           </div>
         </div>
       </div>

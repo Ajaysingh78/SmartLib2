@@ -1,4 +1,4 @@
-// 🔧 FINAL FIXED bookAPI.js
+// 🔧 WORKAROUND - Get book from context instead of API
 // 📁 client/src/api/bookAPI.js
 
 import axios from "axios";
@@ -74,27 +74,15 @@ export async function getAllBooks() {
   }
 }
 
-
-
   
 // ==================== GET BOOK BY ID ====================
+// 🔥 MODIFIED: This now returns null - use BookContext instead
 
 export async function getBookById(bookId) {
-  try {
-
-    const { data } =
-      await axiosInstance.get(
-        `/search/book?id=${bookId}`
-      );
-
-    return data;
-
-  } catch (error) {
-
-    console.error("❌ Error fetching book:", error);
-
-    throw error;
-  }
+  console.warn("⚠️ getBookById is deprecated. Use BookContext.getBookFromCache instead.");
+  
+  // Return null so components know to use context
+  return null;
 }
 
 // ==================== GET POPULAR BOOKS ====================
