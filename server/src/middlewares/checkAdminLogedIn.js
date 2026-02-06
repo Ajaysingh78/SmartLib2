@@ -11,7 +11,7 @@ function isAdminLoggedIn(req, res, next) {
         req.adminId = decodedToken.id;
         next();
     } catch (error) {
-        res.status(500).json({ status: "failed", message: "Internal server error", error });
+        return res.status(401).json({ status: "failed", message: "Unauthorized" });
     }
 }
 

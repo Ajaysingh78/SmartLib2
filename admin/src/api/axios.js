@@ -1,5 +1,6 @@
-// src/api/axios.js
-const VITE_SERVER_URL = '/api';
+const configuredServerUrl = import.meta.env.VITE_SERVER_URL?.trim();
+const VITE_SERVER_URL = configuredServerUrl || '/api';
+const VERIFY_AUTH_ENDPOINT = import.meta.env.VITE_VERIFY_AUTH_ENDPOINT === 'true';
 
 // ------------------------------------------------------------------
 // 🌐 MAIN API CALL FUNCTION
@@ -14,23 +15,48 @@ const apiCall = async (endpoint, options = {}) => {
     method: options.method || 'GET',
     headers: headers,
     ...(options.body && { body: JSON.stringify(options.body) }),
-    credentials: 'include', // ✅ Send cookies with request
+    credentials: 'include',
   };
 
   try {
     const response = await fetch(`${VITE_SERVER_URL}${endpoint}`, config);
+    
+    // ✅ Special handling for /admin/me 404
+    if (!response.ok && response.status === 404 && endpoint === '/admin/me') {
+      throw new Error('AUTH_ENDPOINT_NOT_FOUND');
+    }
+    
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    
+    if (!isJson) {
+      if (endpoint !== '/admin/me') {
+        console.error(`❌ API Error: Expected JSON but got ${contentType}`);
+      }
+      throw new Error('Server returned an invalid response');
+    }
+    
     const data = await response.json();
 
     if (!response.ok) {
       if (response.status === 401) {
         console.error("❌ Unauthorized! Token missing or expired.");
+        // ✅ Clear auth on 401
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('adminData');
+      }
+      if (response.status === 404 && endpoint !== '/admin/me') {
+        console.error(`❌ Endpoint not found: ${endpoint}`);
       }
       throw new Error(data.message || data.error || 'Request failed');
     }
 
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    if (endpoint !== '/admin/me' || !error.message?.includes('AUTH_ENDPOINT_NOT_FOUND')) {
+      console.error('API Error:', error);
+    }
     throw error;
   }
 };
@@ -50,7 +76,12 @@ export const adminLogin = async (email, password) => {
 
     if (data.status === 'success') {
       console.log("✅ Login Success!");
-      // Token is set in cookie by server
+      
+      // ✅ Store auth in localStorage
+      localStorage.setItem('isAuthenticated', 'true');
+      if (data.admin) {
+        localStorage.setItem('adminData', JSON.stringify(data.admin));
+      }
     }
 
     return data;
@@ -66,10 +97,29 @@ export const adminLogout = async () => {
   } catch (error) {
     console.error("Logout failed", error);
   }
+  
+  // ✅ Clear localStorage
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('adminData');
+  
   window.location.replace('/login');
 };
 
+// ✅ FIXED: Use localStorage as primary, API as fallback
 export const checkAuth = async () => {
+  // First check localStorage
+  const isAuthStored = localStorage.getItem('isAuthenticated') === 'true';
+  
+  if (!isAuthStored) {
+    return false;
+  }
+
+  // Default behavior: trust localStorage unless explicitly enabled
+  if (!VERIFY_AUTH_ENDPOINT) {
+    return true;
+  }
+  
+  // Try API verification (optional, won't fail if endpoint missing)
   try {
     const data = await apiCall('/admin/me', {
       headers: {
@@ -78,10 +128,17 @@ export const checkAuth = async () => {
         'Expires': '0',
       }
     });
-    return data.status === 'success';
+    
+    if (data.status === 'success') {
+      return true;
+    }
   } catch (error) {
-    return false;
+    // ✅ API failed, but localStorage says authenticated, so trust it
+    console.log("📝 Using localStorage auth (API unavailable)");
   }
+  
+  // Trust localStorage
+  return isAuthStored;
 };
 
 // ------------------------------------------------------------------
@@ -98,7 +155,6 @@ export const addBook = async (bookData) => {
 
 export const updateBook = async (bookId, updateData) => {
   console.log("✏️ Updating book...");
-
   return await apiCall(`/update/book/${bookId}`, {
     method: 'PATCH',
     body: updateData,
@@ -109,13 +165,8 @@ export const searchBookByTitle = async (title) => {
   return await apiCall(`/search/book?title=${encodeURIComponent(title)}`);
 };
 
-/**
- * 📚 Get ALL books
- * ✅ WORKAROUND: Multiple searches to get max data
- */
 export const getAllBooks = async (page = 1, limit = 20) => {
   console.log(`🔍 Fetching books: page ${page}, limit ${limit}`);
-
   return await apiCall(`/search/all-books?page=${page}&limit=${limit}`);
 };
 

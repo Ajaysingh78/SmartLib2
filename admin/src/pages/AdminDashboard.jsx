@@ -33,13 +33,19 @@ function AdminDashboard() {
   // ===============================
   const {
     books,
+    stats,
     isLoading,
     error,
     addBook,
     updateBook,
     deleteBook,
     toggleAvailability,
-    refreshBooks, // Manual refresh if needed
+    page,
+    totalPages,
+    totalItems,
+    changePage,
+    filters,
+    updateFilter,
   } = useBooks();
 
   const {
@@ -308,7 +314,7 @@ function AdminDashboard() {
       <AdminHeader
         onAddBook={handleOpenAddForm}
         onExportCSV={exportCSV}
-        totalBooks={books.length}
+        totalBooks={totalItems || books.length}
       />
 
       {/* ========================================= */}
@@ -336,7 +342,7 @@ function AdminDashboard() {
 
         {/* Stats Section */}
         <div className="mb-8">
-          <BookStats books={books} categoriesCount={DEPARTMENTS.length} />
+          <BookStats stats={stats} categoriesCount={DEPARTMENTS.length} />
         </div>
 
         {/* Search & Filter Section */}
@@ -346,7 +352,9 @@ function AdminDashboard() {
             setSearchQuery={setSearchQuery}
             selectedCategory={selectedCategory}
             setSelectedCategory={setSelectedCategory}
-            categories={DEPARTMENTS} 
+            categories={DEPARTMENTS}
+            filters={filters}
+            updateFilter={updateFilter}
           />
         </div>
 
@@ -359,11 +367,64 @@ function AdminDashboard() {
         ) : (
           <BookTable
             books={filteredBooks}
-            totalBooks={books.length}
+            totalBooks={totalItems || books.length}
             onToggleAvailability={handleToggleAvailability}
             onDeleteBook={handleDeleteBook}
             onEditBook={handleEditBook}
           />
+        )}
+
+        {!isLoading && totalPages > 1 && (
+          <div className="mt-6 bg-white rounded-lg shadow p-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-gray-600">
+                Page {page} of {totalPages} • Total Books: {totalItems}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => changePage(page - 1)}
+                  disabled={page <= 1}
+                  className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, index) => index + 1)
+                    .filter((pageNumber) => {
+                      if (totalPages <= 7) return true;
+                      if (pageNumber === 1 || pageNumber === totalPages) return true;
+                      return Math.abs(pageNumber - page) <= 1;
+                    })
+                    .map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        onClick={() => changePage(pageNumber)}
+                        className={`min-w-[36px] h-9 px-2 text-sm rounded-lg border transition-colors ${
+                          pageNumber === page
+                            ? "bg-indigo-600 text-white border-indigo-600"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => changePage(page + 1)}
+                  disabled={page >= totalPages}
+                  className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
 

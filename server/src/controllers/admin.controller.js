@@ -2,6 +2,16 @@ import adminModel from "../models/admin.model.js";
 import { hashPassword, comparePassword } from "../config/hashPassword.js";
 import { generateToken } from "../config/jwt.js";
 
+function getCookieOptions() {
+    const isProduction = process.env.NODE_ENV === "production";
+    return {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+    };
+}
+
 async function createAdminRoute(req, res) {
     try {
         const { name, email, password } = req.body;
@@ -27,12 +37,7 @@ async function createAdminRoute(req, res) {
         const token = generateToken({ id: newAdmin._id });
 
         // set token in cookie
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "strict",
-            maxAge: 24 * 60 * 60 * 1000,
-        });
+        res.cookie("token", token, getCookieOptions());
 
         return res.status(201).json({ status: "success", message: "Admin created successfully", data: { name: newAdmin.name, email: newAdmin.email } });
     } catch (error) {
@@ -66,12 +71,7 @@ async function loginAdminRoute(req, res) {
         const token = generateToken({ id: admin._id });
 
         // set token in cookie
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "strict",
-            maxAge: 24 * 60 * 60 * 1000,
-        });
+        res.cookie("token", token, getCookieOptions());
 
         // return admin data
         return res.status(200).json({ status: "success", message: "Admin logged in successfully", data: { name: admin.name, email: admin.email } });
@@ -101,8 +101,8 @@ function logoutAdmin(req, res) {
     try {
         res.clearCookie("token", {
             httpOnly: true,
-            secure: true,
-            sameSite: "strict",
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         });
         return res.status(200).json({ status: "success", message: "Logged out successfully" });
     } catch (error) {

@@ -1,9 +1,7 @@
-/**
- * GeoFence Utility for Campus Library Access Control
- * Supports 11 campus libraries with 50-acre radius coverage
- */
 
-// ⚠️ IMPORTANT: Replace with your actual campus library coordinates
+
+const GEO_TEST_MODE = import.meta.env.VITE_GEO_TEST === "true";
+
 export const CAMPUS_LIBRARIES = [
   {
     id: 'central_library',

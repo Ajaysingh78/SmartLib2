@@ -82,12 +82,6 @@ export function useBooks() {
         // Since we picked ONE API to call, we must enforce other active filters manually on the returned page.
         // Note: This only filters the CURRENT PAGE. Ideal solution requires backend combinatorial search.
 
-        // Filter: Availability (if we didn't fetch unavailable API)
-        if (filters.availability === 'unavailable' && filters.availability !== 'unavailable') {
-          // Logic above ensures if availability is unavailable, we fetched unavailable API. 
-          // So we don't need to double filter here typically unless logic changes.
-        }
-
         // Filter: Image (if we fetched Unavailable or All)
         if (filters.image === 'no-image') {
           // If we called getUnavailableBooks, we might have books WITH images. Filter them out.
@@ -136,8 +130,9 @@ export function useBooks() {
   const changePage = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setSearchParams(prev => {
-        prev.set("page", newPage.toString());
-        return prev;
+        const nextParams = new URLSearchParams(prev);
+        nextParams.set("page", newPage.toString());
+        return nextParams;
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -369,9 +364,10 @@ export function useBooks() {
     filters,
     updateFilter: (key, value) => {
       setSearchParams(prev => {
-        prev.set(key, value);
-        prev.set("page", "1"); // Reset to page 1
-        return prev;
+        const nextParams = new URLSearchParams(prev);
+        nextParams.set(key, value);
+        nextParams.set("page", "1"); // Reset to page 1
+        return nextParams;
       });
     }
   };
