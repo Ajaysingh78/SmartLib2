@@ -1,52 +1,104 @@
-
+// src/utils/geolocation.js
+// ============================================
+// 📍 CAMPUS GEOLOCATION SYSTEM - FINAL
+// ============================================
 
 const GEO_TEST_MODE = import.meta.env.VITE_GEO_TEST === "true";
+const CAMPUS_CENTER = {
+  latitude: 23.185381950277044,
+  longitude: 77.32770183726367,
+};
+const CAMPUS_RADIUS_METERS = Number(import.meta.env.VITE_CAMPUS_RADIUS_METERS || 700);
+const MIN_GPS_BUFFER_METERS = Number(import.meta.env.VITE_MIN_GPS_BUFFER_METERS || 80);
 
+// ============================================
+// 📚 CAMPUS LIBRARIES - YOUR ACTUAL LOCATION
+// ============================================
 export const CAMPUS_LIBRARIES = [
   {
     id: 'central_library',
     name: 'Central Library',
-    latitude: 23.2599,  // Replace with actual coordinates
-    longitude: 77.4126, // Replace with actual coordinates
-    radius: 450, // 50 acres ≈ 450 meters
+    latitude: 23.1854,  // Your exact coordinates
+    longitude: 77.3277,
+    radius: 450,
   },
   {
-    id: 'library_2',
+    id: 'engineering_library',
     name: 'Engineering Block Library',
-    latitude: 23.2605,
-    longitude: 77.4130,
+    latitude: 23.1860,
+    longitude: 77.3282,
     radius: 450,
   },
   {
-    id: 'library_3',
+    id: 'science_library',
     name: 'Science Block Library',
-    latitude: 23.2595,
-    longitude: 77.4120,
+    latitude: 23.1848,
+    longitude: 77.3272,
     radius: 450,
   },
-  // TODO: Add remaining 8 libraries here
-  // Copy this format and add your actual coordinates
-  /*
   {
-    id: 'library_4',
-    name: 'Library Name',
-    latitude: 0.0,
-    longitude: 0.0,
+    id: 'admin_library',
+    name: 'Administrative Block Library',
+    latitude: 23.1856,
+    longitude: 77.3270,
     radius: 450,
   },
-  */
+  {
+    id: 'medical_library',
+    name: 'Medical Block Library',
+    latitude: 23.1852,
+    longitude: 77.3284,
+    radius: 450,
+  },
+  {
+    id: 'arts_library',
+    name: 'Arts Block Library',
+    latitude: 23.1862,
+    longitude: 77.3275,
+    radius: 450,
+  },
+  {
+    id: 'commerce_library',
+    name: 'Commerce Block Library',
+    latitude: 23.1850,
+    longitude: 77.3280,
+    radius: 450,
+  },
+  {
+    id: 'law_library',
+    name: 'Law Block Library',
+    latitude: 23.1858,
+    longitude: 77.3268,
+    radius: 450,
+  },
+  {
+    id: 'sports_library',
+    name: 'Sports Complex Library',
+    latitude: 23.1846,
+    longitude: 77.3278,
+    radius: 450,
+  },
+  {
+    id: 'hostel_library',
+    name: 'Hostel Block Library',
+    latitude: 23.1864,
+    longitude: 77.3285,
+    radius: 450,
+  },
+  {
+    id: 'research_library',
+    name: 'Research Block Library',
+    latitude: 23.1844,
+    longitude: 77.3274,
+    radius: 450,
+  },
 ];
 
-/**
- * Calculate distance between two GPS coordinates using Haversine formula
- * @param {number} lat1 - User latitude
- * @param {number} lon1 - User longitude
- * @param {number} lat2 - Library latitude
- * @param {number} lon2 - Library longitude
- * @returns {number} Distance in meters
- */
+// ============================================
+// 🧮 CALCULATE DISTANCE (HAVERSINE FORMULA)
+// ============================================
 export const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371e3; // Earth's radius in meters
+  const R = 6371e3; // Earth radius in meters
   const φ1 = (lat1 * Math.PI) / 180;
   const φ2 = (lat2 * Math.PI) / 180;
   const Δφ = ((lat2 - lat1) * Math.PI) / 180;
@@ -57,19 +109,23 @@ export const calculateDistance = (lat1, lon1, lat2, lon2) => {
     Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c; // Distance in meters
+  return R * c;
 };
 
-/**
- * Check if user is within any campus library boundary
- * @param {number} userLat - User's current latitude
- * @param {number} userLon - User's current longitude
- * @returns {Object} { isWithinCampus: boolean, nearestLibrary: object|null, distance: number }
- */
-export const checkCampusAccess = (userLat, userLon) => {
+// ============================================
+// ✅ CHECK IF USER IS WITHIN CAMPUS
+// ============================================
+export const checkCampusAccess = (userLat, userLon, userAccuracy = 0) => {
   let nearestLibrary = null;
   let minDistance = Infinity;
-  let isWithinCampus = false;
+  const distanceFromCampusCenter = calculateDistance(
+    userLat,
+    userLon,
+    CAMPUS_CENTER.latitude,
+    CAMPUS_CENTER.longitude
+  );
+  const gpsBuffer = Math.max(MIN_GPS_BUFFER_METERS, Math.round(userAccuracy || 0));
+  let isWithinCampus = distanceFromCampusCenter <= (CAMPUS_RADIUS_METERS + gpsBuffer);
 
   CAMPUS_LIBRARIES.forEach((library) => {
     const distance = calculateDistance(
@@ -93,13 +149,14 @@ export const checkCampusAccess = (userLat, userLon) => {
     isWithinCampus,
     nearestLibrary,
     distance: Math.round(minDistance),
+    campusDistance: Math.round(distanceFromCampusCenter),
+    gpsBuffer,
   };
 };
 
-/**
- * Get user's current location using browser Geolocation API
- * @returns {Promise<{latitude: number, longitude: number, accuracy: number}>}
- */
+// ============================================
+// 📍 GET USER GPS LOCATION
+// ============================================
 export const getUserLocation = () => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -107,8 +164,28 @@ export const getUserLocation = () => {
       return;
     }
 
+    // TEST MODE - Use fixed coordinates (23.1854, 77.3277)
+    if (GEO_TEST_MODE) {
+      console.log('🧪 TEST MODE ENABLED');
+      console.log('📍 Using fixed location: 23.1854, 77.3277');
+      setTimeout(() => {
+        resolve({
+          latitude: 23.1854,
+          longitude: 77.3277,
+          accuracy: 10,
+        });
+      }, 1000); // Simulate network delay
+      return;
+    }
+
+    // PRODUCTION MODE - Get real GPS
+    console.log('🌍 PRODUCTION MODE - Requesting GPS location...');
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log('✅ GPS Location obtained:', {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -116,57 +193,74 @@ export const getUserLocation = () => {
         });
       },
       (error) => {
-        let errorMessage = 'Location access denied';
+        let errorMessage = 'Unable to get location';
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage = 'Location permission denied. Please enable location access.';
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = 'Location information unavailable.';
+            errorMessage = 'Location unavailable. Please check your GPS settings.';
             break;
           case error.TIMEOUT:
-            errorMessage = 'Location request timed out.';
+            errorMessage = 'Location request timed out. Please try again.';
             break;
           default:
             errorMessage = 'An unknown error occurred.';
         }
+        console.error('❌ GPS Error:', errorMessage);
         reject(new Error(errorMessage));
       },
       {
-        enableHighAccuracy: true, // Use GPS for better accuracy
-        timeout: 10000, // 10 second timeout
-        maximumAge: 0, // Don't use cached location
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
       }
     );
   });
 };
 
-/**
- * Main function to verify campus access
- * @returns {Promise<Object>} Access verification result
- */
+// ============================================
+// 🔐 VERIFY CAMPUS ACCESS (MAIN FUNCTION)
+// ============================================
 export const verifyCampusAccess = async () => {
   try {
-    // Get user's current location
+    console.log('🔍 Starting campus verification...');
+    
     const userLocation = await getUserLocation();
     
-    // Check if within campus boundary
     const accessCheck = checkCampusAccess(
       userLocation.latitude,
-      userLocation.longitude
+      userLocation.longitude,
+      userLocation.accuracy
     );
 
-    return {
+    const result = {
       success: true,
-      ...accessCheck,
+      isWithinCampus: accessCheck.isWithinCampus,
+      nearestLibrary: accessCheck.nearestLibrary,
+      distance: accessCheck.distance,
+      campusDistance: accessCheck.campusDistance,
+      campusRadius: CAMPUS_RADIUS_METERS,
+      gpsBuffer: accessCheck.gpsBuffer,
       userLocation,
       timestamp: new Date().toISOString(),
     };
+
+    console.log('📊 Verification Result:', {
+      access: result.isWithinCampus ? '✅ GRANTED' : '❌ DENIED',
+      library: result.nearestLibrary?.name,
+      distance: result.distance + 'm',
+    });
+
+    return result;
   } catch (error) {
+    console.error('❌ Verification failed:', error.message);
     return {
       success: false,
       error: error.message,
       isWithinCampus: false,
+      nearestLibrary: null,
+      distance: null,
     };
   }
 };
