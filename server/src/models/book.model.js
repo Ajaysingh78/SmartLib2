@@ -39,8 +39,8 @@ export const DEPARTMENTS = [
   // Pharmacy
   "B.Pharm", "M.Pharm", "D.Pharma",
 
-  // Medical & Allied Health
-  "Nursing", "Physiotherapy", "Lab Technology", "Radiology", "Public Health",
+  // Medical & Allied Health ✅ Ayurveda added
+  "Nursing", "Physiotherapy", "Lab Technology", "Radiology", "Public Health", "Ayurveda",
 
   // Law
   "LLB", "LLM",
@@ -62,72 +62,37 @@ export const DEPARTMENTS = [
 ];
 
 // ─── FACULTY → DEPARTMENTS MAP ────────────────────────────────────────────────
-// Frontend pe faculty select karne ke baad konse departments dikhenge
 export const FACULTY_DEPARTMENTS = {
-  "Engineering & Technology": [
-    "CSE", "IT", "AI/ML", "Data Science", "Cyber Security",
-    "IoT", "EC", "EX", "Mechanical", "Civil",
-    "Electrical", "Chemical", "Automobile", "Robotics",
-  ],
-  "Computer Applications": ["BCA", "MCA", "Integrated MCA", "PGDCA"],
-  "Management & Commerce": ["BBA", "MBA", "B.Com", "M.Com", "Finance", "HR", "Marketing"],
-  "Science": [],
-  "Agriculture": [],
-  "Pharmacy": ["B.Pharm", "M.Pharm", "D.Pharma"],
-  "Medical & Allied Health": ["Nursing", "Physiotherapy", "Lab Technology", "Radiology", "Public Health"],
-  "Law": [],
-  "Architecture & Planning": [],
-  "Arts & Humanities": [],
-  "Competitive Exams": ["GATE", "Placement", "Aptitude & Reasoning"],
-  "Research & Reference": ["Thesis", "Journal", "Reference"],
-  "Non-Academic": ["Fiction", "General Knowledge", "Magazine", "Sports & Hobby"],
+  "Engineering & Technology":  ["CSE","IT","AI/ML","Data Science","Cyber Security","IoT","EC","EX","Mechanical","Civil","Electrical","Chemical","Automobile","Robotics"],
+  "Computer Applications":     ["BCA","MCA","Integrated MCA","PGDCA"],
+  "Management & Commerce":     ["BBA","MBA","B.Com","M.Com","Finance","HR","Marketing"],
+  "Science":                   [],
+  "Agriculture":               [],
+  "Pharmacy":                  ["B.Pharm","M.Pharm","D.Pharma"],
+  "Medical & Allied Health":   ["Nursing","Physiotherapy","Lab Technology","Radiology","Public Health","Ayurveda"], // ✅ FIXED
+  "Law":                       [],
+  "Architecture & Planning":   [],
+  "Arts & Humanities":         [],
+  "Competitive Exams":         ["GATE","Placement","Aptitude & Reasoning"],
+  "Research & Reference":      ["Thesis","Journal","Reference"],
+  "Non-Academic":              ["Fiction","General Knowledge","Magazine","Sports & Hobby"],
 };
 
 // ─── SCHEMA ───────────────────────────────────────────────────────────────────
 const bookSchema = new mongoose.Schema(
   {
-    // ── Basic Info ──────────────────────────────────────────────────
     title: {
       type: String,
       required: [true, "Title is required"],
       trim: true,
       unique: true,
     },
-
-    author: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    description: {
-      type: String,
-      default: "",
-    },
-
-    isbn: {
-      type: String,
-      unique: true,
-      sparse: true,
-      trim: true,
-    },
-
-    publisher: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    edition: {
-      type: String,
-      trim: true,
-      default: "",
-    },
-
-    cover_url: {
-      type: String,
-      default: "",
-    },
+    author:      { type: String, trim: true, default: "" },
+    description: { type: String, default: "" },
+    isbn:        { type: String, unique: true, sparse: true, trim: true },
+    publisher:   { type: String, trim: true, default: "" },
+    edition:     { type: String, trim: true, default: "" },
+    cover_url:   { type: String, default: "" },
 
     language: {
       type: String,
@@ -142,78 +107,27 @@ const bookSchema = new mongoose.Schema(
       enum: FACULTIES,
     },
 
-    // Ek book multiple departments mein ho sakti hai
-    // e.g. "Data Structure" → ["CSE", "IT", "BCA", "MCA"]
-    departments: {
-      type: [String],
-      default: [],
-    },
+    departments:    { type: [String], default: [] },
+    subjects:       { type: [String], default: [] },
+    tags:           { type: [String], default: [] },
+    searchableText: { type: String, default: "", select: false },
 
-    subjects: {
-      type: [String],
-      default: [],
-    },
-
-    tags: {
-      type: [String],
-      default: [],
-    },
-
-    // ── Search Field ────────────────────────────────────────────────
-    // Auto-generate hoti hai - manually mat likhna
-    searchableText: {
-      type: String,
-      default: "",
-      select: false,
-    },
-
-    // ── Physical Copies ─────────────────────────────────────────────
-    copies: {
-      type: [String],
-      default: [],
-    },
-
-    isAvailable: {
-      type: Boolean,
-      default: true,
-    },
+    // ── Physical ────────────────────────────────────────────────────
+    copies:      { type: [String], default: [] },
+    isAvailable: { type: Boolean, default: true },
 
     // ── Analytics ──────────────────────────────────────────────────
-    views: {
-      type: Number,
-      default: 0,
-    },
-
-    // ── Admin ──────────────────────────────────────────────────────
-    batchID: {
-      type: String,
-      default: "",
-    },
+    views:   { type: Number, default: 0 },
+    batchID: { type: String, default: "" },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 // ─── INDEXES ──────────────────────────────────────────────────────────────────
 bookSchema.index(
-  {
-    title: "text",
-    author: "text",
-    description: "text",
-    searchableText: "text",
-  },
-  {
-    weights: {
-      title: 10,
-      author: 8,
-      searchableText: 5,
-      description: 2,
-    },
-    name: "book_text_index",
-  }
+  { title: "text", author: "text", description: "text", searchableText: "text" },
+  { weights: { title: 10, author: 8, searchableText: 5, description: 2 }, name: "book_text_index" }
 );
-
 bookSchema.index({ faculty: 1 });
 bookSchema.index({ departments: 1 });
 bookSchema.index({ isAvailable: 1 });
@@ -228,16 +142,10 @@ function _buildSearchableText(doc) {
     doc.author || "",
     doc.faculty || "",
     ...(Array.isArray(doc.departments) ? doc.departments : []),
-    ...(Array.isArray(doc.subjects) ? doc.subjects : []),
-    ...(Array.isArray(doc.tags) ? doc.tags : []),
+    ...(Array.isArray(doc.subjects)    ? doc.subjects    : []),
+    ...(Array.isArray(doc.tags)        ? doc.tags        : []),
   ];
-
-  return parts
-    .join(" ")
-    .toLowerCase()
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return parts.join(" ").toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 // ─── HOOKS ────────────────────────────────────────────────────────────────────
@@ -248,13 +156,10 @@ bookSchema.pre("save", function (next) {
 
 bookSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate();
-  if (update?.$set) {
-    update.$set.searchableText = _buildSearchableText(update.$set);
-  }
+  if (update?.$set) update.$set.searchableText = _buildSearchableText(update.$set);
   next();
 });
 
 // ─── MODEL ────────────────────────────────────────────────────────────────────
 const Book = mongoose.model("Book", bookSchema);
-
 export default Book;

@@ -1,16 +1,6 @@
 /**
  * ─── SMARTLIB MIGRATION SCRIPT ────────────────────────────────────────────────
- *
- * Purane books ko naye schema mein convert karta hai.
- *
- * Chalane ka tarika (server folder mein):
- *   node src/utils/migrate.books.js
- *
- * Kya karta hai:
- *   1. Purana `department` → naya `faculty` + `departments[]`
- *   2. `searchableText` auto-generate
- *   3. Default `language`, `subjects`, `tags` set karta hai
- *   4. Koi data delete nahi hota
+ * node src/utlis/migrate.books.js  (server folder se chalao)
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -48,14 +38,22 @@ const DEPARTMENT_MAP = {
   // Agriculture
   AGRICULTURE:  { faculty: "Agriculture", departments: ["Agriculture"] },
 
-  // Pharmacy
+  // Pharmacy ✅ FIXED
   "B.PHARM":    { faculty: "Pharmacy", departments: ["B.Pharm"] },
-  "D.Pharma":   { faculty: "Pharmacy", departments: ["D.Pharma"] },
+  "B.PHARMA":   { faculty: "Pharmacy", departments: ["B.Pharm"] },   // ✅ NEW
+  "D.PHARM":    { faculty: "Pharmacy", departments: ["D.Pharma"] },
+  "D.PHARMA":   { faculty: "Pharmacy", departments: ["D.Pharma"] },  // ✅ NEW
 
-  // Medical & Allied Health
+  // Medical & Allied Health ✅ FIXED
   "B.PT":       { faculty: "Medical & Allied Health", departments: ["Physiotherapy"] },
   "B.HM":       { faculty: "Medical & Allied Health", departments: ["Public Health"] },
-  AYURVEDA:     { faculty: "Medical & Allied Health", departments: ["Public Health"] },
+  AYURVEDA:     { faculty: "Medical & Allied Health", departments: ["Ayurveda"] }, // ✅ FIXED - apna dept
+
+  // Arts & Humanities
+  "B.ED":       { faculty: "Arts & Humanities", departments: ["BA"] },
+  "M.ED":       { faculty: "Arts & Humanities", departments: ["MA"] },  // ✅ NEW
+  "B.FA":       { faculty: "Arts & Humanities", departments: ["BA"] },
+  "B.FT":       { faculty: "Arts & Humanities", departments: ["BA"] },
 
   // Law
   LAW:          { faculty: "Law", departments: ["LLB"] },
@@ -63,11 +61,6 @@ const DEPARTMENT_MAP = {
 
   // Architecture
   "B.ARCH":     { faculty: "Architecture & Planning", departments: ["B.Arch"] },
-
-  // Arts & Humanities
-  "B.ED":       { faculty: "Arts & Humanities", departments: ["BA"] },
-  "B.FA":       { faculty: "Arts & Humanities", departments: ["BA"] },
-  "B.FT":       { faculty: "Arts & Humanities", departments: ["BA"] },
 };
 
 // ─── HELPER ───────────────────────────────────────────────────────────────────
@@ -90,16 +83,24 @@ async function migrate() {
   console.log("═".repeat(55));
 
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log("✅ MongoDB connected");
   } catch (err) {
     console.error("❌ MongoDB connection failed:", err.message);
     process.exit(1);
   }
 
-  // Sirf wo books lo jinmein faculty nahi hai (purane)
+  // ── Pehle Ayurveda ko fix karo jo galat "Public Health" mein gayi ──
+  console.log("\n🔧 Fixing Ayurveda books (Public Health → Ayurveda)...");
+  const ayurvedaFix = await Book.updateMany(
+    { departments: "Public Health", faculty: "Medical & Allied Health" },
+    { $set: { departments: ["Ayurveda"] } }
+  );
+  console.log(`   ✅ Ayurveda fixed: ${ayurvedaFix.modifiedCount} books`);
+
+  // ── Sirf unmigrated books ─────────────────────────────────────────
   const books = await Book.find({ faculty: { $exists: false } }).lean();
-  console.log(`\n📖 Purane books (migration needed): ${books.length}`);
+  console.log(`\n📖 Remaining unmigrated books: ${books.length}`);
 
   if (books.length === 0) {
     console.log("✅ Sab books already migrated hain!\n");
@@ -108,48 +109,40 @@ async function migrate() {
   }
 
   let updated = 0;
-  let failed = 0;
+  let failed  = 0;
   const unmapped = new Set();
 
   for (const book of books) {
     try {
       const oldDept = (book.department || "").toString().trim().toUpperCase();
-      const mapped = DEPARTMENT_MAP[oldDept];
+      const mapped  = DEPARTMENT_MAP[oldDept];
 
       let faculty, departments;
 
       if (mapped) {
-        faculty = mapped.faculty;
+        faculty     = mapped.faculty;
         departments = mapped.departments;
       } else {
         unmapped.add(oldDept || "EMPTY");
-        faculty = "Non-Academic";
+        faculty     = "Non-Academic";
         departments = [];
       }
 
-      const updateData = {
-        faculty,
-        departments,
-        subjects: [],
-        tags: [],
-        language: "English",
-      };
-
+      const updateData = { faculty, departments, subjects: [], tags: [], language: "English" };
       updateData.searchableText = buildSearchableText({ ...book, ...updateData });
 
       await Book.updateOne({ _id: book._id }, { $set: updateData });
       updated++;
 
-      if (updated % 100 === 0) {
-        console.log(`   ⏳ ${updated}/${books.length} migrated...`);
-      }
+      if (updated % 100 === 0) console.log(`   ⏳ ${updated}/${books.length} migrated...`);
+
     } catch (err) {
       failed++;
       console.error(`   ❌ "${book.title}": ${err.message}`);
     }
   }
 
-  // ── Report ───────────────────────────────────────────────────────
+  // ── Report ────────────────────────────────────────────────────────
   console.log("\n" + "─".repeat(55));
   console.log("📊 MIGRATION REPORT");
   console.log("─".repeat(55));
@@ -157,10 +150,8 @@ async function migrate() {
   console.log(`❌ Failed  : ${failed}`);
 
   if (unmapped.size > 0) {
-    console.log("\n⚠️  UNMAPPED DEPARTMENTS (manually fix karo):");
+    console.log("\n⚠️  UNMAPPED DEPARTMENTS:");
     unmapped.forEach((d) => console.log(`   • "${d}"`));
-    console.log("\n   In books ko 'Non-Academic' diya gaya hai temporarily.");
-    console.log("   DEPARTMENT_MAP mein add karo aur script dobara chalao.");
   } else {
     console.log("\n🎉 Sab departments successfully mapped!");
   }

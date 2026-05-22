@@ -1,5 +1,44 @@
 import Book, { FACULTIES, FACULTY_DEPARTMENTS } from "../models/book.model.js";
 
+// ─── OLD DEPT FALLBACK MAP ────────────────────────────────────────────────────
+// Purane books ke liye fallback (migration ke baad bhi kaam kare)
+const FACULTY_TO_OLD_DEPTS = {
+  "Engineering & Technology":  ["CSE","IT","ECE","EEE","MECH","CIVIL"],
+  "Computer Applications":     ["BCA","MCA"],
+  "Management & Commerce":     ["MBA","BBA","B.COM","B.DES","B.MS","B.AS","B.FA","B.FT","B.HM"],
+  "Science":                   ["B.SC"],
+  "Agriculture":               ["AGRICULTURE"],
+  "Pharmacy":                  ["B.PHARM","B.PHARMA","D.PHARM","D.PHARMA"],  // ✅ FIXED
+  "Medical & Allied Health":   ["B.PT","AYURVEDA"],                           // ✅ FIXED
+  "Law":                       ["LAW","B.LLB"],
+  "Architecture & Planning":   ["B.ARCH"],
+  "Arts & Humanities":         ["B.ED","M.ED","B.FA","B.FT"],
+  "Competitive Exams":         [],
+  "Research & Reference":      [],
+  "Non-Academic":              [],
+};
+
+const DEPT_TO_OLD_DEPT = {
+  "CSE":         "CSE",
+  "IT":          "IT",
+  "EC":          "ECE",
+  "Electrical":  "EEE",
+  "Mechanical":  "MECH",
+  "Civil":       "CIVIL",
+  "BCA":         "BCA",
+  "MCA":         "MCA",
+  "MBA":         "MBA",
+  "BBA":         "BBA",
+  "B.Com":       "B.COM",
+  "B.Sc":        "B.SC",
+  "Agriculture": "AGRICULTURE",
+  "B.Pharm":     "B.PHARM",    // ✅ FIXED
+  "D.Pharma":    "D.PHARM",    // ✅ FIXED
+  "Ayurveda":    "AYURVEDA",   // ✅ FIXED
+  "LLB":         "LAW",
+  "B.Arch":      "B.ARCH",
+};
+
 // ─── PAGINATION ───────────────────────────────────────────────────────────────
 const getPagination = (req) => {
   const page  = Math.max(parseInt(req.query.page,  10) || 1,  1);
@@ -8,111 +47,100 @@ const getPagination = (req) => {
   return { page, limit, skip };
 };
 
-// ─── ESCAPE REGEX ─────────────────────────────────────────────────────────────
 const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // ─── BUILD QUERY ──────────────────────────────────────────────────────────────
-// Ye function query params se MongoDB filter banata hai
 const buildBookQuery = (query = {}) => {
   const filter = {};
 
   const searchTerm   = String(query.q || query.search || query.title || "").trim();
-  const faculty      = String(query.faculty || "").trim();
-  const department   = String(query.department || "").trim();
-  const availability = String(query.availability || "").trim().toLowerCase();
-  const language     = String(query.language || "").trim();
+  const faculty      = String(query.faculty     || "").trim();
+  const department   = String(query.department  || "").trim();
+  const availability = String(query.availability|| "").trim().toLowerCase();
+  const language     = String(query.language    || "").trim();
 
   // ── Search ────────────────────────────────────────────────────────
-  // MongoDB $text search use karo agar search term hai
-  // Yeh title, author, description, searchableText sab mein dhundhta hai
   if (searchTerm) {
     if (searchTerm.length >= 3) {
-      // Full-text search (indexes use karta hai - fast)
       filter.$text = { $search: searchTerm };
     } else {
-      // Short terms ke liye regex (2 chars ya kam)
       const safe = escapeRegex(searchTerm);
       filter.$or = [
-        { title:       { $regex: safe, $options: "i" } },
-        { author:      { $regex: safe, $options: "i" } },
-        { isbn:        { $regex: safe, $options: "i" } },
+        { title:  { $regex: safe, $options: "i" } },
+        { author: { $regex: safe, $options: "i" } },
+        { isbn:   { $regex: safe, $options: "i" } },
       ];
     }
   }
 
   // ── Faculty Filter ────────────────────────────────────────────────
+  // Naye books: faculty field
+  // Purane books: old department field (fallback)
   if (faculty && faculty.toLowerCase() !== "all" && FACULTIES.includes(faculty)) {
-    filter.faculty = faculty;
+    const oldDepts = FACULTY_TO_OLD_DEPTS[faculty] || [];
+    if (oldDepts.length > 0) {
+      filter.$or = [
+        { faculty: faculty },
+        { department: { $in: oldDepts } },
+      ];
+    } else {
+      filter.faculty = faculty;
+    }
   }
 
   // ── Department Filter ─────────────────────────────────────────────
-  // departments array mein se match karo
   if (department && department.toLowerCase() !== "all") {
-    filter.departments = { $in: [department] };
+    const oldDept = DEPT_TO_OLD_DEPT[department];
+    if (oldDept) {
+      filter.$or = [
+        { departments: { $in: [department] } },
+        { department: oldDept },
+      ];
+    } else {
+      filter.departments = { $in: [department] };
+    }
   }
 
-  // ── Availability Filter ───────────────────────────────────────────
+  // ── Availability ──────────────────────────────────────────────────
   if (availability === "available")   filter.isAvailable = true;
   if (availability === "unavailable") filter.isAvailable = false;
 
-  // ── Language Filter ───────────────────────────────────────────────
-  if (language && language.toLowerCase() !== "all") {
-    filter.language = language;
-  }
+  // ── Language ──────────────────────────────────────────────────────
+  if (language && language.toLowerCase() !== "all") filter.language = language;
 
   return filter;
 };
 
 // ─── BUILD SORT ───────────────────────────────────────────────────────────────
 const buildSort = (query = {}, hasTextSearch = false) => {
-  const sortBy = String(query.sort || "").trim().toLowerCase();
-
-  // Text search ke time relevance score se sort karo
-  if (hasTextSearch) {
-    return { score: { $meta: "textScore" }, views: -1 };
-  }
-
-  switch (sortBy) {
+  if (hasTextSearch) return { score: { $meta: "textScore" }, views: -1 };
+  switch (String(query.sort || "").trim().toLowerCase()) {
     case "views":      return { views: -1 };
     case "title_asc":  return { title: 1 };
     case "title_desc": return { title: -1 };
     case "newest":     return { createdAt: -1 };
     case "oldest":     return { createdAt: 1 };
-    default:           return { views: -1 }; // default: popular first
+    default:           return { views: -1 };
   }
 };
 
-// ─── SEARCH BY PAGE (MAIN API) ────────────────────────────────────────────────
-// GET /search/all-books?q=data&faculty=Engineering&department=CSE&availability=available
+// ─── SEARCH BY PAGE ───────────────────────────────────────────────────────────
 async function searchByPage(req, res) {
   try {
     const { page, limit, skip } = getPagination(req);
-    const filter = buildBookQuery(req.query);
+    const filter        = buildBookQuery(req.query);
     const hasTextSearch = !!filter.$text;
-    const sort = buildSort(req.query, hasTextSearch);
-
-    // Text search ke liye score bhi select karo
-    const selectFields = hasTextSearch
-      ? { score: { $meta: "textScore" } }
-      : {};
+    const sort          = buildSort(req.query, hasTextSearch);
+    const selectFields  = hasTextSearch ? { score: { $meta: "textScore" } } : {};
 
     const [books, total] = await Promise.all([
-      Book.find(filter, selectFields)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      Book.find(filter, selectFields).sort(sort).skip(skip).limit(limit).lean(),
       Book.countDocuments(filter),
     ]);
 
     return res.status(200).json({
       status: "success",
-      pagination: {
-        totalItems:  total,
-        currentPage: page,
-        totalPages:  Math.ceil(total / limit),
-        pageSize:    limit,
-      },
+      pagination: { totalItems: total, currentPage: page, totalPages: Math.ceil(total / limit), pageSize: limit },
       data: books,
     });
   } catch (error) {
@@ -125,19 +153,9 @@ async function searchByPage(req, res) {
 async function searchBookByTitle(req, res) {
   try {
     const { title } = req.query;
-    if (!title) {
-      return res.status(400).json({ status: "failed", message: "Title is required" });
-    }
-
-    const books = await Book.find(buildBookQuery({ title }))
-      .limit(20)
-      .lean();
-
-    return res.status(200).json({
-      status: "success",
-      count: books.length,
-      data: books,
-    });
+    if (!title) return res.status(400).json({ status: "failed", message: "Title is required" });
+    const books = await Book.find(buildBookQuery({ title })).limit(20).lean();
+    return res.status(200).json({ status: "success", count: books.length, data: books });
   } catch (error) {
     console.error("searchBookByTitle:", error);
     return res.status(500).json({ status: "failed", message: "Server Error" });
@@ -148,20 +166,13 @@ async function searchBookByTitle(req, res) {
 async function searchByViews(req, res) {
   try {
     const { page, limit, skip } = getPagination(req);
-
     const [books, total] = await Promise.all([
       Book.find().sort({ views: -1 }).skip(skip).limit(limit).lean(),
       Book.countDocuments(),
     ]);
-
     return res.status(200).json({
       status: "success",
-      pagination: {
-        totalItems:  total,
-        currentPage: page,
-        totalPages:  Math.ceil(total / limit),
-        pageSize:    limit,
-      },
+      pagination: { totalItems: total, currentPage: page, totalPages: Math.ceil(total / limit), pageSize: limit },
       data: books,
     });
   } catch (error) {
@@ -174,20 +185,13 @@ async function searchByViews(req, res) {
 async function searchUnAvailbleBooks(req, res) {
   try {
     const { page, limit, skip } = getPagination(req);
-
     const [books, total] = await Promise.all([
       Book.find({ isAvailable: false }).skip(skip).limit(limit).lean(),
       Book.countDocuments({ isAvailable: false }),
     ]);
-
     return res.status(200).json({
       status: "success",
-      pagination: {
-        totalItems:  total,
-        currentPage: page,
-        totalPages:  Math.ceil(total / limit),
-        pageSize:    limit,
-      },
+      pagination: { totalItems: total, currentPage: page, totalPages: Math.ceil(total / limit), pageSize: limit },
       data: books,
     });
   } catch (error) {
@@ -200,28 +204,14 @@ async function searchUnAvailbleBooks(req, res) {
 async function searchBooksWithoutImage(req, res) {
   try {
     const { page, limit, skip } = getPagination(req);
-
-    const withoutCoverQuery = {
-      $or: [
-        { cover_url: { $exists: false } },
-        { cover_url: null },
-        { cover_url: "" },
-      ],
-    };
-
+    const q = { $or: [{ cover_url: { $exists: false } }, { cover_url: null }, { cover_url: "" }] };
     const [books, total] = await Promise.all([
-      Book.find(withoutCoverQuery).skip(skip).limit(limit).lean(),
-      Book.countDocuments(withoutCoverQuery),
+      Book.find(q).skip(skip).limit(limit).lean(),
+      Book.countDocuments(q),
     ]);
-
     return res.status(200).json({
       status: "success",
-      pagination: {
-        totalItems:  total,
-        currentPage: page,
-        totalPages:  Math.ceil(total / limit),
-        pageSize:    limit,
-      },
+      pagination: { totalItems: total, currentPage: page, totalPages: Math.ceil(total / limit), pageSize: limit },
       data: books,
     });
   } catch (error) {
@@ -230,16 +220,12 @@ async function searchBooksWithoutImage(req, res) {
   }
 }
 
-// ─── FACULTY + DEPARTMENTS META ───────────────────────────────────────────────
-// Frontend ko faculties aur unke departments bhejta hai
+// ─── FACULTY META ─────────────────────────────────────────────────────────────
 async function getFacultyMeta(req, res) {
   try {
     return res.status(200).json({
       status: "success",
-      data: {
-        faculties: FACULTIES,
-        facultyDepartments: FACULTY_DEPARTMENTS,
-      },
+      data: { faculties: FACULTIES, facultyDepartments: FACULTY_DEPARTMENTS },
     });
   } catch (error) {
     console.error("getFacultyMeta:", error);
