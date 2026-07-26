@@ -251,16 +251,10 @@ The long-term vision is to enable universities to modernize traditional librarie
 
 ---
 
-# 👨‍💻 Developer
+# 🌐 Live Demo
 
-**Ajay Singh**
+Explore the live application:
 
-Computer Science Engineering Student
+**🔗 Live Website:** https://smartlibrary2.netlify.app/
 
-Passionate about building scalable software, AI-powered applications, and technology solutions that solve real-world institutional problems.
-
----
-
-## ⭐ Support
-
-If you found this project interesting, consider giving it a **⭐ Star** and sharing your feedback!
+> **Note:** This platform is designed as a **campus-first university digital library solution**. Some features and administrative functionalities may require authorized access and are intended for institutional use.
